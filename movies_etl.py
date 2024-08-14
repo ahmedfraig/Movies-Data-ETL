@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import subprocess
 
 def ratings_df(file_path):
     # Create a DatFrame for Movie Ratings
@@ -56,4 +57,35 @@ def etl_csv():
     etl_dataFrame = etlDataFrame()
     export_dataframe_to_csv(etl_dataFrame,"ETL")
 
+def load_file():
+    # Define your Docker container name and paths
+    container_name = "pubsub_emulator"
+    local_file_path = "./ETL.csv"
+    container_dir_path = "/path/in/container"
+    container_file_path = f"{container_dir_path}/ETL.csv"
+
+    # Step 1: Run the container with the volume mounted
+    subprocess.run([
+        "docker", "run", "--rm", "-d", "-p", "8085:8085", "--name", container_name,
+        "-v", f"{local_file_path}:/tmp/ETL.csv",
+        "google/cloud-sdk:emulators",
+        "/bin/bash", "-c", "gcloud beta emulators pubsub start --project=some-project-id --host-port='0.0.0.0:8085'"
+    ])
+
+    # Step 2: Create the directory inside the container
+    subprocess.run([
+        "docker", "exec", container_name, "mkdir", "-p", container_dir_path
+    ])
+
+    # Step 3: Copy the file to the container
+    subprocess.run([
+        "docker", "cp", local_file_path, f"{container_name}:{container_file_path}"
+    ])
+
+    # Optional: Execute any script inside the container
+    # subprocess.run([
+    #     "docker", "exec", container_name, "bash", "-c", "your_command_here"
+    # ])
+
 etl_csv()
+load_file()
